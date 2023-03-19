@@ -1,0 +1,4 @@
+rootProject.name = 'bytelib'
+include 'core'
+include 'gui'
+
