@@ -5,40 +5,28 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/**
- * Configuration example:
- * <p>
- * gui:
- * buttons:
- * 'a':
- * name: "test"
- * lore:
- * - "line1"
- * - "line2"
- * material: GOLD_INGOT
- * layout: # number of lines determines number of rows
- * - "  a   a  " # spaces are reserved for empty slots
- * - "         "
- */
-public abstract class ConfigurableChestGUI implements ChestGUI {
+public abstract class ConfigurableChestGUI extends ChestGUI {
   private final Character[][] layout;
-  private final Map<Character, ItemStack> buttons = new HashMap<>();
+  private final Map<Character, ChestGUIButton> buttons = new HashMap<>();
   private final Map<String, Consumer<InventoryClickEvent>> actions = new HashMap<>();
+  private final String title;
 
   public ConfigurableChestGUI(ConfigurationSection config) {
+    this.title = config.getString("title");
     final ConfigurationSection buttonsConfig = config.getConfigurationSection("buttons");
     if (buttonsConfig == null) {
       throw new RuntimeException("Failed to parse GUI config for buttons. None found!");
     }
     buttonsConfig.getValues(false).forEach((id, item) -> {
-      final ItemStack itemStack = ItemParser.fromConfig((ConfigurationSection) item);
-      buttons.put(id.charAt(0), itemStack);
+      final ConfigurableChestGUIButton button = new ConfigurableChestGUIButton((ConfigurationSection) item);
+      buttons.put(id.charAt(0), button);
     });
     final List<String> layoutConfig = config.getStringList("layout");
     if (layoutConfig.isEmpty()) {
@@ -56,27 +44,49 @@ public abstract class ConfigurableChestGUI implements ChestGUI {
     }
   }
 
+  @NotNull
+  @Override
+  public String getTitle() {
+    return title;
+  }
+
   @Override
   public Character[][] getLayout() {
     return layout;
   }
 
   @Override
-  public Map<Character, ItemStack> getButtons() {
+  @NotNull
+  public Map<Character, ChestGUIButton> getButtons() {
     return buttons;
   }
 
   @Override
-  public Map<String, Consumer<InventoryClickEvent>> getActions() {
+  public @NotNull Map<String, Consumer<InventoryClickEvent>> getActions() {
     return actions;
   }
 
-  protected void registerAction(String id, Consumer<InventoryClickEvent> callback) {
+  protected void registerAction(@NotNull String id, @NotNull Consumer<InventoryClickEvent> callback) {
     actions.put(id, callback);
   }
 
-  @Override
-  public void open(Player player) {
+  private final static class ConfigurableChestGUIButton implements ChestGUIButton {
+    private final ItemStack display;
+    private final String actionId;
 
+    public ConfigurableChestGUIButton(ConfigurationSection config) {
+      this.display = ItemParser.fromConfig(config);
+      this.actionId = config.getString("action");
+    }
+
+    @Override
+    public @NotNull ItemStack getItemStack(@NotNull Player viewer) {
+      return display;
+    }
+
+    @Override
+    public String getActionId() {
+      return actionId;
+    }
   }
 }
