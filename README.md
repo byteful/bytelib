@@ -20,7 +20,8 @@ gui:
       lore:
         - "&7Test"
       material: BARRIER
-      action: "test-action"
+      action: "test-action" # optional
+      action_meta: "some-argument-data" # optional
   ```
   
   The "test-action" action will be registered in the code, while the layout and button displays are configurable in YML.
