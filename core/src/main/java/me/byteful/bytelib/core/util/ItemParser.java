@@ -1,6 +1,7 @@
 package me.byteful.bytelib.core.util;
 
 import com.cryptomorin.xseries.XMaterial;
+import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -19,9 +20,9 @@ public final class ItemParser {
       throw new RuntimeException("Material for config item (" + config.getName() + ") cannot be null!");
     }
 
-    final ItemStack item = XMaterial.matchXMaterial(material).orElseThrow().parseItem();
+    final ItemStack item = XMaterial.matchXMaterial(material).orElseThrow(RuntimeException::new).parseItem();
     assert item != null : "Failed to parse XMaterial item: " + material;
-    if (item.getType().isAir()) {
+    if (item.getType() == Material.AIR) {
       return item;
     }
     final ItemMeta meta = item.getItemMeta();
@@ -33,6 +34,7 @@ public final class ItemParser {
       meta.setLore(color(lore));
     }
 
+    item.setItemMeta(meta);
     return item;
   }
 }

@@ -50,6 +50,6 @@ public final class Formatting {
   }
 
   public static List<String> color(List<String> input) {
-    return input.stream().map(Formatting::color).toList();
+    return input.stream().map(Formatting::color).collect(Collectors.toList());
   }
 }

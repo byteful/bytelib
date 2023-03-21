@@ -9,4 +9,6 @@ public interface ChestGUIButton {
   @NotNull ItemStack getItemStack(@NotNull Player viewer);
 
   @Nullable String getActionId();
+
+  @Nullable String getActionMetadata();
 }

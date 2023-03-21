@@ -1,113 +1,68 @@
 package me.byteful.bytelib.gui.api.gui;
 
-import me.byteful.bytelib.core.CoreProvider;
 import me.byteful.bytelib.core.util.Formatting;
+import me.byteful.bytelib.gui.GUIModule;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.inventory.Inventory;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
-public abstract class ChestGUI implements Listener {
-  private static final Set<Inventory> TRACKED_INVENTORIES = new HashSet<>();
-
-  public ChestGUI() {
-    Bukkit.getPluginManager().registerEvents(this, CoreProvider.get());
-  }
-
+public abstract class ChestGUI {
   public abstract Character[][] getLayout();
 
   @NotNull
   public abstract Map<Character, ChestGUIButton> getButtons();
 
   @NotNull
-  public abstract Map<String, Consumer<InventoryClickEvent>> getActions();
+  public abstract Map<String, BiConsumer<String, InventoryClickEvent>> getActions();
 
   @NotNull
   public abstract String getTitle();
 
-  public abstract void draw(@NotNull Inventory inventory, @NotNull Player player);
+  public final void draw(@NotNull Inventory inventory, @NotNull Player player) {
+    final Character[][] layout = getLayout();
+    for (int y = 0; y < layout.length; y++) {
+      final Character[] row = layout[y];
+      for (int x = 0; x < row.length; x++) {
+        final Character slot = row[x];
+        final ChestGUIButton button = getButtons().get(slot);
+        if (button != null) {
+          inventory.setItem(x + (y * 9), button.getItemStack(player));
+        }
+      }
+    }
+
+    onDraw(inventory, player);
+  }
+
+  protected abstract void onDraw(@NotNull Inventory inventory, @NotNull Player player);
+
+  public void onClose(@NotNull Inventory inventory, @NotNull Player player) {
+  }
 
   @NotNull
   public Inventory build(@NotNull Player player) {
-    final Inventory inv = Bukkit.createInventory(null, getLayout().length, Formatting.color(getTitle()));
+    final Inventory inv = Bukkit.createInventory(null, getLayout().length * 9, Formatting.color(getTitle()));
     draw(inv, player);
-    TRACKED_INVENTORIES.add(inv);
 
     return inv;
   }
 
   public void open(@NotNull Player player) {
-    player.openInventory(build(player));
+    final Inventory inv = build(player);
+    player.openInventory(inv);
+    GUIModule.getInstance().getTrackedInventories().put(inv, this);
   }
 
-  private void cleanup(@NotNull Inventory inventory) {
-    if (TRACKED_INVENTORIES.remove(inventory)) {
+  public void cleanup(@NotNull Inventory inventory, boolean close) {
+    if (close) {
       inventory.getViewers().forEach(HumanEntity::closeInventory);
-      inventory.clear();
     }
-  }
-
-  @EventHandler
-  public void on(InventoryCloseEvent event) {
-    final Inventory inventory = event.getInventory();
-    if (inventory.getViewers().isEmpty()) {
-      cleanup(inventory);
-    }
-  }
-
-  @EventHandler
-  public void on(PluginDisableEvent event) {
-    if (event.getPlugin() == CoreProvider.get()) {
-      TRACKED_INVENTORIES.forEach(this::cleanup);
-    }
-  }
-
-  @EventHandler
-  public void on(InventoryDragEvent event) {
-    if (TRACKED_INVENTORIES.contains(event.getInventory())) {
-      event.setCancelled(true);
-    }
-  }
-
-  @EventHandler
-  public void on(InventoryClickEvent event) {
-    if (!TRACKED_INVENTORIES.contains(event.getView().getTopInventory())) {
-      return;
-    }
-    if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR && !TRACKED_INVENTORIES.contains(event.getClickedInventory())) {
-      event.setCancelled(true);
-      return;
-    }
-    if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && !TRACKED_INVENTORIES.contains(event.getClickedInventory())) {
-      event.setCancelled(true);
-    }
-    if (event.getInventory().equals(event.getClickedInventory())) {
-      event.setCancelled(true);
-      int slot = event.getSlot();
-      int x = slot % 9;
-      int y = slot / 9;
-      final Character buttonId = getLayout()[y][x];
-      final ChestGUIButton button = getButtons().get(buttonId);
-      if (button != null) {
-        final String actionId = button.getActionId();
-        final Consumer<InventoryClickEvent> action = getActions().get(actionId);
-        if (action != null) {
-          action.accept(event);
-        }
-      }
-    }
+    inventory.clear();
   }
 }
